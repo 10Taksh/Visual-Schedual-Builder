@@ -1,5 +1,6 @@
 from collections.abc import Generator
 from contextlib import contextmanager
+import os
 from pathlib import Path
 
 from sqlalchemy import create_engine
@@ -7,7 +8,9 @@ from sqlalchemy.orm import Session, sessionmaker
 
 
 BASE_DIR = Path(__file__).resolve().parent
-DATABASE_URL = f"sqlite:///{BASE_DIR / 'schedule.db'}"
+DATABASE_PATH = Path(os.getenv("DATABASE_PATH", BASE_DIR / "schedule.db"))
+DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
+DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
 
 engine = create_engine(
     DATABASE_URL,

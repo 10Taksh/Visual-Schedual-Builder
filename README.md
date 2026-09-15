@@ -17,6 +17,31 @@ The development server exposes `GET /health`, `GET /employees`, and creates
 `schedule.db` on startup. Open `http://127.0.0.1:5000/employees` to manage the
 team.
 
+## Deploy online with SQLite
+
+Use a Python hosting service such as Render, Railway, or PythonAnywhere.
+
+This repository includes `render.yaml`, so Render can configure the web
+service and persistent SQLite disk automatically.
+
+Build/install command:
+
+```text
+pip install -r requirements.txt
+```
+
+Start command:
+
+```text
+gunicorn app:app
+```
+
+The project continues to use SQLite. By default the database is `schedule.db`
+in the project folder. For hosting with persistent storage, set the
+`DATABASE_PATH` environment variable to the mounted SQLite file path, for
+example `/data/schedule.db`. Without a persistent disk, the website will work,
+but hosted restarts or redeployments can erase the SQLite data.
+
 Employee API routes are available at `GET /api/employees`,
 `GET /api/employees/<id>`, `POST /api/employees`, `PUT /api/employees/<id>`,
 and `DELETE /api/employees/<id>`. Positions are available from
