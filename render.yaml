@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: visual-schedule-builder
+    env: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.4"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: visual-schedule-builder-db
+          property: connectionString
+
+databases:
+  - name: visual-schedule-builder-db
+    databaseName: visual_schedule_builder
+    user: visual_schedule_builder
+    plan: free

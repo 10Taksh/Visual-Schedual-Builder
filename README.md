@@ -17,20 +17,32 @@ The development server exposes `GET /health`, `GET /employees`, and creates
 `schedule.db` on startup. Open `http://127.0.0.1:5000/employees` to manage the
 team.
 
-## Deploy online
+## Deploy online for free
 
-This project is a Flask app with SQLite storage, so it can be hosted on most
-Python web hosting providers. The basic deployment flow is:
+This app is already set up for a standard Python web host. The simplest free
+option is Render: connect your GitHub repo, choose the Python service, and use
+this start command:
+
+```text
+gunicorn app:app --bind 0.0.0.0:$PORT
+```
+
+The app also supports a real database URL through the `DATABASE_URL` environment
+variable. If you do not set one, it falls back to a local SQLite file named
+`schedule.db` in the project folder. SQLite is fine for testing, but on free
+hosting it can be reset when the app restarts, so a Postgres add-on is the more
+reliable option.
+
+Example free-hosting setup:
 
 ```text
 pip install -r requirements.txt
-gunicorn app:app
+export DATABASE_URL=postgresql://user:password@host/dbname
+gunicorn app:app --bind 0.0.0.0:$PORT
 ```
 
-The app uses a local SQLite database file named `schedule.db` by default. If
-your hosting provider uses a read-only filesystem or restarts the app often,
-keep the database in a writable persistent folder or set a writable path in the
-hosting environment.
+If you use Render, Railway, or another free Python host, the app will start
+correctly with Gunicorn and expose the `/health` endpoint for a quick check.
 
 Employee API routes are available at `GET /api/employees`,
 `GET /api/employees/<id>`, `POST /api/employees`, `PUT /api/employees/<id>`,
