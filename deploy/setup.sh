@@ -40,6 +40,12 @@ for port in 80 443; do
 done
 if command -v netfilter-persistent >/dev/null; then netfilter-persistent save; fi
 
+echo "==> Ensuring swap exists (small VMs have none; it prevents out-of-memory during installs)"
+if [[ "$(swapon --show --noheadings | wc -l)" -eq 0 ]] && [[ ! -f /swapfile ]]; then
+  fallocate -l 1G /swapfile && chmod 600 /swapfile && mkswap -q /swapfile && swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
 echo "==> Creating service user and directories"
 id -u schedule >/dev/null 2>&1 || useradd --system --home "$APP_DIR" --shell /usr/sbin/nologin schedule
 mkdir -p "$APP_DIR" "$DATA_DIR"
@@ -60,9 +66,13 @@ python3 -m venv "$APP_DIR/.venv"
 
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "==> Writing $ENV_FILE with a fresh SECRET_KEY"
-  sed "s/^SECRET_KEY=.*/SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(32))')/" \
+  MEM_MB=$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)
+  WORKERS=$(( MEM_MB < 1500 ? 1 : 2 ))
+  sed -e "s/^SECRET_KEY=.*/SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(32))')/" \
+      -e "s/^GUNICORN_WORKERS=.*/GUNICORN_WORKERS=$WORKERS/" \
     "$APP_DIR/deploy/schedule-builder.env.example" > "$ENV_FILE"
   chmod 600 "$ENV_FILE"
+  echo "    (${MEM_MB} MB RAM -> ${WORKERS} gunicorn worker(s))"
 fi
 
 chown -R schedule:schedule "$APP_DIR" "$DATA_DIR"

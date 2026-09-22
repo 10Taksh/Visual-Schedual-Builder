@@ -6,12 +6,15 @@ After=network.target
 User=schedule
 Group=schedule
 WorkingDirectory=/opt/schedule-builder
+# Defaults; /etc/schedule-builder.env overrides them (setup.sh picks 1 worker on VMs under 1.5 GB).
+Environment=GUNICORN_WORKERS=2
+Environment=GUNICORN_THREADS=4
 EnvironmentFile=/etc/schedule-builder.env
-# 2 workers x 4 threads is plenty for a team-sized app; SQLite serialises writes,
+# A couple of workers with threads is plenty for a team-sized app; SQLite serialises writes,
 # and db.py sets a busy timeout so concurrent saves wait rather than fail.
 ExecStart=/opt/schedule-builder/.venv/bin/gunicorn wsgi:app \
     --bind 127.0.0.1:8000 \
-    --workers 2 --threads 4 \
+    --workers ${GUNICORN_WORKERS} --threads ${GUNICORN_THREADS} \
     --timeout 60 \
     --access-logfile - --error-logfile -
 Restart=always
