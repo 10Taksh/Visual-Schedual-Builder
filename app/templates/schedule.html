@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{{ active_position.label }} Schedule | Visual Schedule Builder{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.8.1/dist/nouislider.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/schedule.css') }}">
+{% endblock %}
+{% block body_attrs %}data-position="{{ active_position.name }}"{% endblock %}
+
+{% block content %}
+<header class="topbar">
+  <div>
+    <p class="eyebrow">Weekly schedule</p>
+    <h1>{{ active_position.label }}</h1>
+  </div>
+  <div class="week-controls">
+    <a class="icon-button" href="{{ url_for('pages.schedule', slug=previous_position.slug) }}" aria-label="Previous position: {{ previous_position.label }}">‹</a>
+    <span class="week-label">{{ active_position.label }}</span>
+    <a class="icon-button" href="{{ url_for('pages.schedule', slug=next_position.slug) }}" aria-label="Next position: {{ next_position.label }}">›</a>
+  </div>
+</header>
+
+<nav class="position-tabs" aria-label="Schedule positions">
+  {% for position in positions %}
+  <a class="position-tab{% if position.id == active_position.id %} active{% endif %}" href="{{ url_for('pages.schedule', slug=position.slug) }}" {% if position.id == active_position.id %}aria-current="page"{% endif %}>{{ position.label }}</a>
+  {% endfor %}
+</nav>
+
+<section class="schedule-toolbar">
+  <div>
+    <p class="eyebrow">{{ active_position.label }} team</p>
+    <p class="toolbar-copy">Build the week one day at a time. Drag a shift's handles to change its hours; changes save automatically.</p>
+  </div>
+  <div class="schedule-actions">
+    <div class="add-controls">
+      <label class="visually-hidden" for="employee-picker">Employee</label>
+      <select id="employee-picker"><option value="">Select employee</option></select>
+      <label class="visually-hidden" for="day-picker">Day</label>
+      <select id="day-picker">
+        {% for day in days %}
+        <option value="{{ day }}">{{ day }}</option>
+        {% endfor %}
+      </select>
+      <button class="button button-primary" type="button" id="add-shift">+ Add</button>
+    </div>
+    <aside class="employee-details" id="employee-details" aria-live="polite">
+      <p class="details-empty">Select an employee to see their work details.</p>
+    </aside>
+  </div>
+</section>
+
+<section class="schedule-board" aria-label="Weekly {{ active_position.label }} schedule">
+  {% for day in days %}
+  <article class="day-column" data-day="{{ day }}">
+    <header class="day-header">
+      <span>{{ day[:3] }}</span>
+      <small class="day-hours" data-day-hours="{{ day }}"></small>
+    </header>
+    <div class="day-body" data-day-body="{{ day }}">
+      <p class="empty-day">No shifts yet</p>
+    </div>
+  </article>
+  {% endfor %}
+</section>
+
+<footer class="schedule-legend">
+  <span class="legend-mark"></span>
+  <span>Shift color follows each employee across every position.</span>
+</footer>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/nouislider@15.8.1/dist/nouislider.min.js"></script>
+<script type="module" src="{{ url_for('static', filename='js/schedule.js') }}"></script>
+{% endblock %}

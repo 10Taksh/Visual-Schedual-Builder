@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Master Schedule | Visual Schedule Builder{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/master.css') }}">{% endblock %}
+
+{% block content %}
+<header class="master-header">
+  <div>
+    <p class="eyebrow">All departments</p>
+    <h1>Master schedule</h1>
+    <p class="lede">One weekly view of every employee, position, and saved shift.</p>
+  </div>
+  <div class="header-actions">
+    <div class="total-hours">
+      <span>Total store hours</span>
+      <strong>{{ total_paid_minutes // 60 }}h {{ total_paid_minutes % 60 }}m paid</strong>
+      <small>{{ total_scheduled_minutes // 60 }}h {{ total_scheduled_minutes % 60 }}m scheduled</small>
+    </div>
+    <span class="week-label">Recurring weekly template</span>
+    {% if positions %}
+    <a class="button button-primary" href="{{ url_for('pages.schedule', slug=positions[0].slug) }}">Edit schedules</a>
+    {% endif %}
+  </div>
+</header>
+
+<section class="master-groups" aria-label="Master weekly schedule">
+  {% if rows %}
+  <div class="master-scroll">
+    <div class="master-board">
+      <div class="row-label header-label"># Employee / Department</div>
+      {% for day in days %}
+      <div class="day-header"><span>{{ day[:3] }}</span></div>
+      {% endfor %}
+      {% for row in rows %}
+      <div class="row-label" style="--department-color: {{ row.department_color }}">
+        <span class="department-marker"></span>
+        <div>
+          <strong>{{ row.row_number }}. {{ row.employee_name }}</strong>
+          <small>{{ row.department_label }} · {{ row.all_position_paid_hours }}h paid{% if row.position_count > 1 %} across {{ row.position_count }} positions{% endif %}</small>
+        </div>
+      </div>
+      {% for day in days %}
+      <div class="day-cell" style="--department-color: {{ row.department_color }}">
+        {% for shift in row.shifts_by_day[day] %}
+        <article class="shift-card">
+          <p class="shift-time">{{ shift.start_time_display }}–{{ shift.end_time_display }}</p>
+          <p class="shift-meta">{{ shift.paid_minutes // 60 }}h {{ shift.paid_minutes % 60 }}m{% if shift.break_deduction %} · {{ shift.break_minutes }}m break{% endif %}</p>
+        </article>
+        {% else %}
+        <span class="empty-cell">–</span>
+        {% endfor %}
+      </div>
+      {% endfor %}
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <p class="empty-schedule">No saved shifts yet. {% if positions %}<a href="{{ url_for('pages.schedule', slug=positions[0].slug) }}">Start with the {{ positions[0].label }} schedule.</a>{% endif %}</p>
+  {% endif %}
+</section>
+
+<footer class="master-footer">
+  {% for position in positions %}
+  <span class="legend-item"><span class="legend-mark" style="--department-color: {{ position.color }}"></span>{{ position.label }}</span>
+  {% endfor %}
+</footer>
+{% endblock %}

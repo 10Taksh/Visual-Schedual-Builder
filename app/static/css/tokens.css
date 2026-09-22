@@ -1,0 +1,28 @@
+/* Design tokens — the single place colors, type, and spacing are defined. */
+:root {
+  color-scheme: light;
+
+  --ink: #242323;
+  --muted: #6b645e;          /* 5.2:1 on --paper; the old #81786f was 3.9:1 and failed AA */
+  --faint: #9a918a;          /* decorative only, never for text under 14px */
+  --paper: #f7f3ed;
+  --panel: #fffdf9;
+  --panel-tint: #fbf6f0;
+  --line: #e4dbd0;
+  --line-soft: #efe7dd;
+
+  --accent: #d85f45;
+  --accent-dark: #a9402d;
+  --accent-light: #f4d7cc;
+  --accent-faint: #f5e4dc;
+  --sage: #53685d;
+  --danger: #a9402d;
+  --focus: #e8a28f;
+
+  --font-serif: Georgia, "Times New Roman", serif;
+  --font-sans: Arial, Helvetica, sans-serif;
+
+  --radius: 2px;
+  --shadow-panel: 0 18px 50px #6b4e3c12;
+  --shadow-card: 0 5px 12px #6b4e3c12;
+}

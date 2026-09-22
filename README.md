@@ -1,70 +1,110 @@
 # Visual Schedule Builder
 
-Step 4 adds role-filtered employee selection and client-side placement to the
-reusable weekly schedule grid on top of the employee
-management page, CRUD API, Flask foundation, and SQLAlchemy models.
+A small Flask app for building a recurring weekly staff schedule: manage employees and their
+availability, set store operating hours, place shifts per position with drag-to-adjust time
+sliders, and review everything on one master schedule.
 
-## Setup
+## Run it locally
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-python app.py
+python -m pip install -r requirements.txt -r requirements-dev.txt
+$env:FLASK_ENV = "development"
+python wsgi.py
 ```
 
-The development server exposes `GET /health`, `GET /employees`, and creates
-`schedule.db` on startup. Open `http://127.0.0.1:5000/employees` to manage the
-team.
+Open <http://127.0.0.1:5000>. A SQLite database (`schedule.db`) is created in the project
+folder on first start and seeded with the default positions and store hours.
 
-## Deploy online for free
+Run the tests with:
 
-This app is already set up for a standard Python web host. The simplest free
-option is Render: connect your GitHub repo, choose the Python service, and use
-this start command:
-
-```text
-gunicorn app:app --bind 0.0.0.0:$PORT
+```powershell
+python -m pytest
 ```
 
-The app also supports a real database URL through the `DATABASE_URL` environment
-variable. If you do not set one, it falls back to a local SQLite file named
-`schedule.db` in the project folder. SQLite is fine for testing, but on free
-hosting it can be reset when the app restarts, so a Postgres add-on is the more
-reliable option.
+## How it works
 
-Example free-hosting setup:
+- **Employees** (`/employees`) — add people, their employment type, the positions they can
+  work, their weekly availability, and a schedule color. Store operating hours live on the
+  same page.
+- **Schedule** (`/schedule/<position>`) — one weekly board per position. Pick an employee and
+  a day, then drag the shift's handles in 15-minute steps. Changes save automatically. A
+  shift is refused if it falls outside store hours, outside the employee's availability, or
+  overlaps another shift they already hold in any position.
+- **Master** (`/master`) — every saved shift, grouped by position, with paid and scheduled
+  totals. Shifts of five hours or more have a 30-minute unpaid break deducted.
 
-```text
-pip install -r requirements.txt
-export DATABASE_URL=postgresql://user:password@host/dbname
-gunicorn app:app --bind 0.0.0.0:$PORT
+The schedule is a **recurring weekly template** — shifts are keyed by weekday, not by date.
+
+### Availability format
+
+Availability is `Open`, or a JSON object listing only the restricted days:
+
+```json
+{"Monday": "09:00-13:00", "Friday": ["10:00-12:00", "14:00-18:00"], "Sunday": "Unavailable"}
 ```
 
-If you use Render, Railway, or another free Python host, the app will start
-correctly with Gunicorn and expose the `/health` endpoint for a quick check.
+Days that are not listed are open. Anything the server cannot interpret is rejected with a
+message rather than stored.
 
-Employee API routes are available at `GET /api/employees`,
-`GET /api/employees/<id>`, `POST /api/employees`, `PUT /api/employees/<id>`,
-and `DELETE /api/employees/<id>`. Positions are available from
-`GET /api/positions`.
+## Project layout
 
-Schedule layout pages are available at `/schedule/cashier`,
-`/schedule/merchandiser`, `/schedule/cosmetics`, `/schedule/food`, and
-`/schedule/management`. Management includes Supervisor in the same view.
-Employees can be selected by role and placed into a day as saved shift cards.
-Shift sliders save time changes, calculate a 30-minute break at five hours,
-and reject unavailable or overlapping employee shifts.
+```
+app/
+  __init__.py        create_app() — config, engine, bootstrap, blueprints, error handlers
+  config.py          Development / Production / Testing settings
+  constants.py       days, break rules, color palette, default positions
+  db.py              engine + session_scope (SQLite FK pragma, Postgres URL normalisation)
+  models.py          Employee, Position, Shift, StoreSettings
+  bootstrap.py       create tables, patch older schemas, seed defaults, normalise stored data
+  services/          all business logic — framework-free, exercised directly by tests
+    availability.py  canonical availability form + interval lookups
+    employees.py     validation, color assignment, orphaned-shift protection
+    scheduling.py    conflict detection, break rule, master-schedule rollup
+    settings.py      operating hours
+    positions.py     position lookup and URL slugs
+    errors.py        ApiError → JSON error responses
+  routes/
+    pages.py         HTML pages
+    api.py           JSON API under /api
+  templates/         base.html + one template per page
+  static/css/        tokens.css (design tokens), base.css, one file per page
+  static/js/         lib/{api,dom,time,toast}.js shared modules, one module per page
+tests/               pytest suite (in-memory SQLite)
+wsgi.py              entry point: `gunicorn wsgi:app` or `python wsgi.py`
+```
 
-The aggregated master schedule is available at `/master` and shows all saved
-positions together from Monday through Sunday.
+## API
 
-Store operating hours are configured on `/employees`. They are enforced when
-creating or adjusting shifts. Schedule pages and the master view display times
-in 12-hour AM/PM format; the API continues to use `HH:MM` values internally.
-Shift sliders move in 15-minute increments, including times such as 1:00,
-1:15, 1:30, and 1:45.
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/positions` | `[{id, name, label, slug, color, sort_order}]` |
+| GET / PUT | `/api/settings` | operating hours, `{Monday: {open, close} \| null, ...}` |
+| GET | `/api/employees?position=Cashier` | optional position filter |
+| GET / POST | `/api/employees`, `/api/employees/<id>` | |
+| PUT / DELETE | `/api/employees/<id>` | PUT returns 409 `code: orphaned_shifts` if a removed position still has shifts; resend with `remove_orphaned_shifts: true` |
+| GET | `/api/shifts?position=Cashier` | optional position filter |
+| POST | `/api/shifts` | `{employee_id, position, day_of_week, start_time, end_time}` — 409 on conflict |
+| PUT / DELETE | `/api/shifts/<id>` | |
+| DELETE | `/api/shifts` | clears every shift |
 
-The initial position names used by later steps are `Cashier`, `Merchandiser`,
-`Cosmetics`, `Food`, and `Management`. `Supervisor` can be stored as a shift
-position in the combined management view.
+Times are `HH:MM` (24-hour) in the API; responses also include `*_display` fields in 12-hour
+form. Errors are `{"error": "..."}` with a 400/404/409 status.
+
+## Deploy
+
+The repo includes a `render.yaml` for [Render](https://render.com) with a free Postgres
+database. Any host that runs `gunicorn wsgi:app --bind 0.0.0.0:$PORT` works.
+
+Environment variables:
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | Postgres connection string. `postgres://` and `postgresql://` are both accepted and routed to the psycopg 3 driver. Falls back to SQLite when unset. |
+| `DATABASE_PATH` | Where to put the SQLite file when `DATABASE_URL` is unset. |
+| `SECRET_KEY` | Set to a random value in production. |
+| `FLASK_ENV` | `development` enables debug mode; anything else is production. |
+
+The app patches its own schema on startup (adds columns introduced after the first release),
+so upgrading an existing database needs no manual migration.

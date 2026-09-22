@@ -1,0 +1,56 @@
+.topbar, .schedule-toolbar { display: flex; justify-content: space-between; align-items: end; gap: 28px; }
+.topbar h1 { margin: 0; }
+.week-controls { display: flex; align-items: center; gap: 16px; }
+.week-label { min-width: 150px; color: var(--muted); text-align: center; font: 12px var(--font-sans); }
+
+.position-tabs { display: flex; gap: 8px; margin-top: 40px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.position-tab { flex-shrink: 0; padding: 14px 15px; color: var(--muted); font: 700 11px var(--font-sans); text-decoration: none; text-transform: uppercase; }
+.position-tab:hover { color: var(--ink); }
+.position-tab.active { color: var(--accent); border-bottom: 3px solid var(--accent); }
+
+.schedule-toolbar { align-items: center; margin: 28px 0 18px; }
+.toolbar-copy { margin: 0; color: var(--muted); font-size: 16px; }
+.schedule-actions { display: grid; gap: 10px; min-width: min(100%, 560px); }
+.add-controls { display: flex; gap: 7px; align-items: center; }
+.add-controls select { min-width: 145px; border: 1px solid var(--line); padding: 11px 10px; color: var(--ink); background: var(--panel); font: 12px var(--font-sans); }
+.employee-details { min-height: 82px; border: 1px solid var(--line); padding: 12px 14px; background: var(--panel); }
+.details-empty { margin: 0; color: var(--muted); font: 12px var(--font-sans); }
+.details-heading { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 16px; }
+.details-swatch { width: 10px; height: 10px; border-radius: 50%; }
+.details-grid { display: grid; grid-template-columns: auto 1fr; gap: 5px 12px; color: var(--muted); font: 11px/1.4 var(--font-sans); }
+.details-grid strong { color: var(--ink); font-weight: 400; }
+
+.schedule-board { display: grid; grid-template-columns: repeat(7, minmax(150px, 1fr)); min-height: 480px; border: 1px solid var(--line); background: var(--panel); overflow-x: auto; }
+.day-column { min-width: 0; border-right: 1px solid var(--line); }
+.day-column:last-child { border-right: 0; }
+.day-hours { color: var(--muted); font: 10px var(--font-sans); letter-spacing: 0; text-transform: none; white-space: nowrap; }
+.day-column.closed .day-body { background: repeating-linear-gradient(-45deg, transparent 0 8px, var(--line-soft) 8px 9px); }
+.day-body { min-height: 420px; padding: 14px; background: repeating-linear-gradient(to bottom, transparent 0, transparent 69px, var(--line-soft) 70px); }
+.empty-day { margin: 3px 0; color: var(--muted); font: 11px var(--font-sans); text-align: center; }
+
+.shift-card { margin-bottom: 10px; border-left: 5px solid var(--employee-color); padding: 11px 10px; background: color-mix(in srgb, var(--employee-color) 18%, white); box-shadow: var(--shadow-card); }
+.shift-heading { display: flex; justify-content: space-between; gap: 6px; align-items: start; }
+.shift-heading strong { font-size: 16px; font-weight: 400; overflow-wrap: anywhere; }
+.remove-shift { border: 0; padding: 0 2px; color: var(--muted); background: transparent; cursor: pointer; font-size: 18px; line-height: 1; }
+.remove-shift:hover { color: var(--danger); }
+.remove-shift:disabled { opacity: .4; cursor: default; }
+.shift-position, .shift-time, .shift-save-status { display: block; margin-top: 6px; color: var(--muted); font: 10px var(--font-sans); text-transform: uppercase; }
+.shift-time { color: var(--ink); font-size: 11px; text-transform: none; }
+.shift-slider { margin: 13px 4px 8px; }
+.shift-slider .noUi-connect { background: var(--employee-color); }
+.shift-slider .noUi-handle { width: 14px; height: 14px; right: -7px; top: -5px; border: 0; border-radius: 50%; background: var(--ink); box-shadow: none; cursor: grab; }
+.shift-slider .noUi-handle::before, .shift-slider .noUi-handle::after { display: none; }
+.shift-save-status { color: var(--sage); text-transform: none; }
+.shift-save-status.error { color: var(--danger); }
+
+.schedule-legend { display: flex; align-items: center; gap: 8px; margin-top: 15px; color: var(--muted); font: 11px var(--font-sans); }
+
+@media (max-width: 1200px) {
+  .schedule-toolbar { align-items: flex-start; flex-direction: column; }
+  .schedule-actions, .add-controls { width: 100%; }
+  .add-controls select { flex: 1; }
+}
+@media (max-width: 780px) {
+  .topbar { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .add-controls { flex-wrap: wrap; }
+}
