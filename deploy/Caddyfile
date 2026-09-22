@@ -1,0 +1,24 @@
+# Reverse proxy in front of gunicorn.
+#
+# With a domain pointed at the VM, replace the first line with the hostname
+# (e.g. "schedule.example.com {") and Caddy obtains and renews HTTPS certificates
+# automatically. The ":80" form below serves plain HTTP on the public IP.
+
+:80 {
+    encode gzip zstd
+
+    # Static files straight from disk; everything else to gunicorn.
+    handle_path /static/* {
+        root * /opt/schedule-builder/app/static
+        file_server
+        header Cache-Control "public, max-age=86400"
+    }
+
+    handle {
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    log {
+        output file /var/log/caddy/schedule-builder.log
+    }
+}

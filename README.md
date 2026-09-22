@@ -106,8 +106,16 @@ form. Errors are `{"error": "..."}` with a 400/404/409 status.
 
 ## Deploy
 
-The repo includes a `render.yaml` for [Render](https://render.com) with a free Postgres
-database. Any host that runs `gunicorn wsgi:app --bind 0.0.0.0:$PORT` works.
+**On your own VM (Oracle Cloud Always Free, or any Ubuntu server):** see
+[deploy/oracle-cloud.md](deploy/oracle-cloud.md). One script installs gunicorn behind Caddy
+as a systemd service with SQLite on the persistent disk and nightly backups:
+
+```bash
+sudo REPO_URL=https://github.com/10Taksh/Visual-Schedual-Builder.git bash deploy/setup.sh
+```
+
+**On Render:** the repo includes a `render.yaml` with a free Postgres database. Any host that
+runs `gunicorn wsgi:app --bind 0.0.0.0:$PORT` works.
 
 Environment variables:
 

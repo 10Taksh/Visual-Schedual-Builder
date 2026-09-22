@@ -37,7 +37,9 @@ def init_engine(url: str) -> Engine:
     url = normalize_database_url(url)
     kwargs: dict = {}
     if url.startswith("sqlite"):
-        kwargs["connect_args"] = {"check_same_thread": False}
+        # timeout: wait for a writer to finish instead of failing with "database is locked"
+        # when several gunicorn threads save at once.
+        kwargs["connect_args"] = {"check_same_thread": False, "timeout": 15}
         if url in _IN_MEMORY_URLS:
             # Every connection must see the same in-memory database.
             kwargs["poolclass"] = StaticPool
