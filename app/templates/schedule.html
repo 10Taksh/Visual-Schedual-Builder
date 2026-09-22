@@ -57,6 +57,7 @@
           <div class="day-head-side">
             <small class="day-count" data-day-count="{{ day }}"></small>
             <button type="button" class="day-add" data-day-add="{{ day }}" aria-label="Add a shift on {{ day }}" title="Add shift">+</button>
+            <button type="button" class="day-add day-menu-button" data-day-menu="{{ day }}" aria-label="More actions for {{ day }}" aria-haspopup="dialog" title="Copy or clear this day">⋯</button>
           </div>
         </div>
         {% endfor %}
@@ -95,6 +96,25 @@
   <div class="editor-actions">
     <button type="button" class="button button-danger button-sm" data-editor-remove>Remove</button>
     <button type="button" class="button button-primary button-sm" data-editor-save>Save</button>
+  </div>
+  <details class="editor-duplicate">
+    <summary>Duplicate to other days</summary>
+    <div class="day-checks" data-editor-targets></div>
+    <button type="button" class="button button-secondary button-sm" data-editor-duplicate>Duplicate</button>
+  </details>
+</div>
+
+<div class="day-menu card" id="day-menu" role="dialog" aria-label="Day actions" hidden>
+  <div class="editor-head">
+    <strong data-menu-title></strong>
+    <button type="button" class="editor-close" data-menu-close aria-label="Close">×</button>
+  </div>
+  <p class="label">Copy this day's shifts to</p>
+  <div class="day-checks" data-menu-targets></div>
+  <label class="check menu-replace"><input type="checkbox" data-menu-replace> Replace what's already on those days</label>
+  <div class="editor-actions">
+    <button type="button" class="button button-danger button-sm" data-menu-clear>Clear day</button>
+    <button type="button" class="button button-primary button-sm" data-menu-copy>Copy</button>
   </div>
 </div>
 {% endblock %}

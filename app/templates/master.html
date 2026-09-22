@@ -24,9 +24,14 @@
         <strong class="stat-value">{{ rows | map(attribute='employee_id') | unique | list | length }}</strong>
       </div>
     </div>
-    {% if positions %}
-    <a class="button button-primary" href="{{ url_for('pages.schedule', slug=positions[0].slug) }}">Edit schedules</a>
-    {% endif %}
+    <div class="header-buttons">
+      <a class="button button-secondary" href="{{ url_for('pages.export_master') }}" download>Export CSV</a>
+      <a class="button button-quiet" href="{{ url_for('pages.export_shifts') }}" download title="One row per shift">Shift list</a>
+      <button class="button button-quiet" type="button" onclick="window.print()">Print</button>
+      {% if positions %}
+      <a class="button button-primary" href="{{ url_for('pages.schedule', slug=positions[0].slug) }}">Edit schedules</a>
+      {% endif %}
+    </div>
   </div>
 </header>
 
@@ -84,6 +89,34 @@
         </tr>
         {% endfor %}
       </tbody>
+      <tfoot>
+        <tr class="coverage-row">
+          <th scope="row" class="col-employee">
+            <div>
+              <strong>Coverage</strong>
+              <small>People on the floor, by hour</small>
+            </div>
+          </th>
+          {% for day in days %}
+          {% set cover = coverage[day] %}
+          <td>
+            {% if cover.closed %}
+            <span class="empty-cell">Closed</span>
+            {% elif cover.shift_count %}
+            <div class="coverage-bars" role="img" aria-label="{{ day }}: {{ cover.shift_count }} shifts, {{ cover.paid_minutes // 60 }} paid hours">
+              {% for count in cover.buckets %}
+              <span class="coverage-bar" style="--h: {{ (count / max_headcount * 100) | round if max_headcount else 0 }}%" title="{{ count }} at {{ (cover.open[:2] | int + loop.index0) % 24 }}:00"></span>
+              {% endfor %}
+            </div>
+            <small class="coverage-meta">{{ cover.shift_count }} shift{{ '' if cover.shift_count == 1 else 's' }} · {{ cover.paid_minutes // 60 }}h{% if cover.paid_minutes % 60 %} {{ cover.paid_minutes % 60 }}m{% endif %}</small>
+            {% else %}
+            <span class="empty-cell">No coverage</span>
+            {% endif %}
+          </td>
+          {% endfor %}
+          <td class="col-total"></td>
+        </tr>
+      </tfoot>
     </table>
   </div>
   {% else %}

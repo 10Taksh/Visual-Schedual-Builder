@@ -187,16 +187,26 @@ $('#hours-list').addEventListener('change', event => {
   event.target.closest('.hours-row').classList.toggle('is-closed', event.target.checked);
 });
 
+function renderBreakRule(settings) {
+  $('#break-threshold').value = (settings.break_threshold_minutes / 60).toString();
+  $('#break-duration').value = settings.break_duration_minutes;
+}
+
 $('#hours-form').addEventListener('submit', async event => {
   event.preventDefault();
-  const hours = Object.fromEntries(DAYS.map(day => [
-    day,
-    $(`[data-closed="${day}"]`).checked ? null : { open: $(`[data-open="${day}"]`).value, close: $(`[data-close="${day}"]`).value },
-  ]));
+  const payload = {
+    operating_hours: Object.fromEntries(DAYS.map(day => [
+      day,
+      $(`[data-closed="${day}"]`).checked ? null : { open: $(`[data-open="${day}"]`).value, close: $(`[data-close="${day}"]`).value },
+    ])),
+    break_threshold_minutes: Math.round(Number($('#break-threshold').value || 0) * 60),
+    break_duration_minutes: Math.round(Number($('#break-duration').value || 0)),
+  };
   await withBusy($('#save-hours'), async () => {
-    const { ok, data } = await api.put('/api/settings', hours);
-    if (ok) showToast('Operating hours saved');
-    else showError(data.error || 'Unable to save hours');
+    const { ok, data } = await api.put('/api/settings', payload);
+    if (!ok) { showError(data.error || 'Unable to save settings'); return; }
+    renderBreakRule(data);
+    showToast('Store settings saved');
   });
 });
 
@@ -218,7 +228,8 @@ $('#clear-schedule').addEventListener('click', async event => {
 async function loadHours() {
   const { ok, data } = await api.get('/api/settings');
   if (!ok) throw new Error(data.error);
-  renderHours(data);
+  renderHours(data.operating_hours);
+  renderBreakRule(data);
 }
 
 // --- boot --------------------------------------------------------------------

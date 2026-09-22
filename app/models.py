@@ -4,7 +4,7 @@ from datetime import time
 from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Integer, JSON, String, Table, Time
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from app.constants import DAYS_OF_WEEK, EMPLOYMENT_TYPES
+from app.constants import BREAK_DURATION_MINUTES, BREAK_THRESHOLD_MINUTES, DAYS_OF_WEEK, EMPLOYMENT_TYPES
 
 
 class Base(DeclarativeBase):
@@ -82,6 +82,10 @@ class StoreSettings(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     operating_hours: Mapped[dict] = mapped_column(JSON, nullable=False)
+    # A shift lasting at least the threshold has the duration deducted as an unpaid break.
+    # A threshold or duration of 0 disables the rule.
+    break_threshold_minutes: Mapped[int] = mapped_column(Integer, nullable=False, server_default=str(BREAK_THRESHOLD_MINUTES))
+    break_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False, server_default=str(BREAK_DURATION_MINUTES))
 
 
 class Shift(Base):

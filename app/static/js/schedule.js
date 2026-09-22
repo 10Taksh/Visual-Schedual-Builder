@@ -6,8 +6,10 @@
  *   - click / drag on an empty part of a day column: create a shift for the selected person
  *   - "+" in a day header: add the selected person with a sensible default window
  *   - drag a block: move it (also across days); drag its top/bottom edge: resize
- *   - click a block (or Enter/Space): open the editor for exact times, day, or removal
+ *   - click a block (or Enter/Space): open the editor for exact times, day, removal, or duplication
  *   - arrow keys on a focused block: nudge by one slot; Shift+arrow resizes the end
+ *   - "⋯" in a day header: copy the day's shifts to other days, or clear the day
+ *   - removing a shift is immediate, with an Undo in the toast
  *
  * Every change is validated client-side first (store hours, availability, overlaps
  * across positions), then saved; the server remains the final authority.
@@ -23,11 +25,10 @@ const POSITION = document.body.dataset.position;
 const POSITION_COLOR = document.body.dataset.positionColor;
 const SLOT = META.slot_minutes || 15;
 const MINIMUM = META.minimum_shift_minutes || 30;
-const BREAK_THRESHOLD = META.break_threshold_minutes || 300;
-const BREAK_DURATION = META.break_duration_minutes || 30;
 const DEFAULT_ADD_MINUTES = 8 * 60;    // "+" button
 const DEFAULT_CLICK_MINUTES = 4 * 60;  // single click on the board
-const WEEKLY_HOURS_WARNING = 40 * 60;
+const WEEKLY_HOURS_WARNING = META.weekly_hours_warning_minutes || 40 * 60;
+const UNDO_WINDOW_MS = 6000;
 
 const HOUR_PX = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--board-hour-px')) || 64;
 const PX_PER_MIN = HOUR_PX / 60;
@@ -35,16 +36,19 @@ const PX_PER_MIN = HOUR_PX / 60;
 const board = $('#board');
 const boardBody = $('#board-body');
 const editor = $('#shift-editor');
+const dayMenu = $('#day-menu');
 const singleDayQuery = window.matchMedia('(max-width: 900px)');
 
 const state = {
   hours: {},                 // day -> {open, close} in minutes, or null when closed
   axis: { start: 9 * 60, end: 21 * 60 },
+  breakRule: { threshold: META.break_threshold_minutes || 300, duration: META.break_duration_minutes || 30 },
   employees: new Map(),      // employees who can work this position
   shifts: new Map(),         // ALL shifts (every position) — needed for overlap checks and weekly totals
   selectedEmployeeId: null,
   selectedDay: DAYS[0],
   editingId: null,
+  menuDay: null,
 };
 
 board.style.setProperty('--position-color', POSITION_COLOR);
@@ -55,7 +59,11 @@ const snap = minutes => Math.round(minutes / SLOT) * SLOT;
 const yFor = minutes => (minutes - state.axis.start) * PX_PER_MIN;
 const minutesAtY = y => state.axis.start + y / PX_PER_MIN;
 const dayWindow = day => state.hours[day] || null;
-const paidMinutes = duration => duration - (duration >= BREAK_THRESHOLD ? BREAK_DURATION : 0);
+const breakMinutes = duration => {
+  const { threshold, duration: breakLength } = state.breakRule;
+  return threshold > 0 && breakLength > 0 && duration >= threshold ? breakLength : 0;
+};
+const paidMinutes = duration => duration - breakMinutes(duration);
 const selectedEmployee = () => state.employees.get(state.selectedEmployeeId) || null;
 
 function normalizeShift(raw) {
@@ -248,7 +256,7 @@ function positionBlock(block, start, end, lane = 0, lanes = 1) {
 function updateBlockText(block, start, end, day) {
   const duration = end - start;
   block.querySelector('.block-time').textContent = rangeLabel(start, end);
-  block.querySelector('.block-paid').textContent = `${formatDuration(paidMinutes(duration))} paid${duration >= BREAK_THRESHOLD ? ` · ${BREAK_DURATION}m break` : ''}`;
+  block.querySelector('.block-paid').textContent = `${formatDuration(paidMinutes(duration))} paid${breakMinutes(duration) ? ` · ${breakMinutes(duration)}m break` : ''}`;
   block.setAttribute('aria-label', `${block.querySelector('.block-name').textContent}, ${day} ${rangeLabel(start, end)}. Press Enter to edit, arrow keys to move.`);
 }
 
@@ -552,23 +560,73 @@ async function commitShift(shift, day, start, end) {
   return true;
 }
 
+function refreshAfterChange(...days) {
+  renderHeaders();
+  for (const day of new Set(days)) renderDay(day);
+  renderSummary();
+  renderRoster();
+}
+
+/** Remove immediately; the toast offers Undo, which re-creates the shift. */
 async function removeShift(shift) {
-  const confirmed = await confirmDialog({
-    title: 'Remove this shift?',
-    message: `${shift.employee_name} · ${shift.day_of_week} ${rangeLabel(shift.start, shift.end)}`,
-    confirmLabel: 'Remove shift',
-    danger: true,
-  });
-  if (!confirmed) return;
   const { ok, status, data } = await api.delete(`/api/shifts/${shift.id}`);
   if (!ok && status !== 404) { showError(data.error || 'Unable to remove shift'); return; }
   state.shifts.delete(shift.id);
   closeEditor();
-  renderHeaders();
-  renderDay(shift.day_of_week);
-  renderSummary();
-  renderRoster();
-  showToast('Shift removed');
+  refreshAfterChange(shift.day_of_week);
+  showToast(`Removed ${shift.employee_name}, ${shift.day_of_week.slice(0, 3)} ${rangeLabel(shift.start, shift.end)}`, {
+    duration: UNDO_WINDOW_MS,
+    action: {
+      label: 'Undo',
+      onClick: async () => {
+        const restored = await api.post('/api/shifts', {
+          employee_id: shift.employee_id, position: shift.position, day_of_week: shift.day_of_week,
+          start_time: minutesToClock(shift.start), end_time: minutesToClock(shift.end),
+        });
+        if (!restored.ok) { showError(restored.data.error || 'Unable to restore the shift'); return; }
+        state.shifts.set(restored.data.id, normalizeShift(restored.data));
+        refreshAfterChange(shift.day_of_week);
+        showToast('Shift restored');
+      },
+    },
+  });
+}
+
+/** Re-fetch every shift after a bulk change (copy, clear) so the board matches the server. */
+async function reloadShifts() {
+  const { ok, data } = await api.get('/api/shifts');
+  if (!ok) { showError(data.error || 'Unable to refresh shifts'); return; }
+  state.shifts = new Map(data.map(shift => [shift.id, normalizeShift(shift)]));
+  renderAll();
+}
+
+function dayCheckboxes(container, excludeDay) {
+  container.innerHTML = DAYS.filter(day => day !== excludeDay).map(day => `
+    <label class="check"><input type="checkbox" value="${day}" ${dayWindow(day) ? '' : 'disabled'}> ${day.slice(0, 3)}</label>`).join('');
+}
+
+function checkedDays(container) {
+  return $$('input:checked', container).map(input => input.value);
+}
+
+function describeCopy(result, targets) {
+  const days = targets.map(day => day.slice(0, 3)).join(', ');
+  const parts = [];
+  if (result.created.length) parts.push(`Copied ${plural(result.created.length, 'shift')} to ${days}`);
+  if (result.removed) parts.push(`${plural(result.removed, 'existing shift')} replaced`);
+  if (result.skipped.length) parts.push(`${plural(result.skipped.length, 'shift')} skipped: ${result.skipped[0].reason}`);
+  return parts.join(' · ');
+}
+
+async function copyShifts(sourceDay, targets, { shiftIds = null, replace = false } = {}) {
+  if (!targets.length) { showError('Choose at least one day.'); return false; }
+  const { ok, data } = await api.post('/api/shifts/copy', {
+    position: POSITION, source_day: sourceDay, target_days: targets, shift_ids: shiftIds, replace,
+  });
+  if (!ok) { showError(data.error || 'Unable to copy shifts'); return false; }
+  await reloadShifts();
+  showToast(describeCopy(data, targets), { type: data.created.length ? 'info' : 'error', duration: 6000 });
+  return true;
 }
 
 // --- editor popover ----------------------------------------------------------
@@ -582,6 +640,8 @@ function openEditor(shift) {
   editor.querySelector('[data-editor-start]').value = minutesToClock(shift.start);
   editor.querySelector('[data-editor-end]').value = minutesToClock(shift.end);
   editor.querySelector('[data-editor-error]').hidden = true;
+  dayCheckboxes(editor.querySelector('[data-editor-targets]'), shift.day_of_week);
+  editor.querySelector('.editor-duplicate').open = false;
   editor.hidden = false;
   updateEditorMeta();
 
@@ -627,7 +687,7 @@ function updateEditorMeta() {
   const conflict = conflictFor(shift, day, start, end);
   error.hidden = !conflict;
   error.textContent = conflict || '';
-  meta.textContent = `${formatDuration(duration)} scheduled · ${formatDuration(paidMinutes(duration))} paid${duration >= BREAK_THRESHOLD ? ` · ${BREAK_DURATION}m break` : ''}`;
+  meta.textContent = `${formatDuration(duration)} scheduled · ${formatDuration(paidMinutes(duration))} paid${breakMinutes(duration) ? ` · ${breakMinutes(duration)}m break` : ''}`;
 }
 
 editor.addEventListener('input', updateEditorMeta);
@@ -649,12 +709,84 @@ editor.querySelector('[data-editor-save]').addEventListener('click', async event
   if (saved) closeEditor();
   else updateEditorMeta();
 });
+editor.querySelector('[data-editor-duplicate]').addEventListener('click', async event => {
+  const shift = state.shifts.get(state.editingId);
+  if (!shift) return;
+  const button = event.currentTarget;
+  button.disabled = true;
+  const done = await copyShifts(shift.day_of_week, checkedDays(editor.querySelector('[data-editor-targets]')), { shiftIds: [shift.id] });
+  button.disabled = false;
+  if (done) closeEditor();
+});
 editor.addEventListener('keydown', event => {
   if (event.key === 'Escape') { event.preventDefault(); closeEditor(); }
   if (event.key === 'Enter' && event.target.tagName !== 'BUTTON') { event.preventDefault(); editor.querySelector('[data-editor-save]').click(); }
 });
 document.addEventListener('pointerdown', event => {
   if (!editor.hidden && !editor.contains(event.target) && !event.target.closest('.shift-block')) closeEditor();
+});
+
+// --- day menu: copy / clear --------------------------------------------------
+
+function openDayMenu(day, anchor) {
+  closeEditor();
+  state.menuDay = day;
+  const count = shiftsFor(day).length;
+  dayMenu.querySelector('[data-menu-title]').textContent = `${day} · ${plural(count, 'shift')}`;
+  dayCheckboxes(dayMenu.querySelector('[data-menu-targets]'), day);
+  dayMenu.querySelector('[data-menu-replace]').checked = false;
+  dayMenu.querySelector('[data-menu-copy]').disabled = count === 0;
+  dayMenu.querySelector('[data-menu-clear]').disabled = count === 0;
+  dayMenu.hidden = false;
+  if (!singleDayQuery.matches) {
+    const rect = anchor.getBoundingClientRect();
+    const width = dayMenu.offsetWidth;
+    dayMenu.style.left = `${clamp(rect.right - width, 12, window.innerWidth - width - 12)}px`;
+    dayMenu.style.top = `${rect.bottom + 8}px`;
+  }
+  dayMenu.querySelector('[data-menu-targets] input:not(:disabled)')?.focus();
+}
+
+function closeDayMenu() {
+  dayMenu.hidden = true;
+  state.menuDay = null;
+}
+
+$('.board-header').addEventListener('click', event => {
+  const button = event.target.closest('[data-day-menu]');
+  if (!button) return;
+  if (state.menuDay === button.dataset.dayMenu) closeDayMenu();
+  else openDayMenu(button.dataset.dayMenu, button);
+});
+dayMenu.querySelector('[data-menu-close]').addEventListener('click', closeDayMenu);
+dayMenu.querySelector('[data-menu-copy]').addEventListener('click', async event => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  const done = await copyShifts(state.menuDay, checkedDays(dayMenu.querySelector('[data-menu-targets]')), {
+    replace: dayMenu.querySelector('[data-menu-replace]').checked,
+  });
+  button.disabled = false;
+  if (done) closeDayMenu();
+});
+dayMenu.querySelector('[data-menu-clear]').addEventListener('click', async () => {
+  const day = state.menuDay;
+  const count = shiftsFor(day).length;
+  const confirmed = await confirmDialog({
+    title: `Clear ${day}?`,
+    message: `Removes ${plural(count, 'shift')} from the ${POSITION} schedule on ${day}. Other positions are not affected.`,
+    confirmLabel: 'Clear day',
+    danger: true,
+  });
+  if (!confirmed) return;
+  const { ok, data } = await api.delete(`/api/shifts?position=${encodeURIComponent(POSITION)}&day=${encodeURIComponent(day)}`);
+  if (!ok) { showError(data.error || 'Unable to clear the day'); return; }
+  closeDayMenu();
+  await reloadShifts();
+  showToast(`${plural(data.deleted_count, 'shift')} cleared from ${day}`);
+});
+dayMenu.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); closeDayMenu(); } });
+document.addEventListener('pointerdown', event => {
+  if (!dayMenu.hidden && !dayMenu.contains(event.target) && !event.target.closest('[data-day-menu]')) closeDayMenu();
 });
 
 // --- keyboard on blocks ------------------------------------------------------
@@ -718,7 +850,7 @@ $('#day-tabs').addEventListener('click', event => {
   state.selectedDay = tab.dataset.dayTab;
   applySingleDayMode();
 });
-singleDayQuery.addEventListener('change', () => { closeEditor(); applySingleDayMode(); });
+singleDayQuery.addEventListener('change', () => { closeEditor(); closeDayMenu(); applySingleDayMode(); });
 
 // --- boot --------------------------------------------------------------------
 
@@ -731,10 +863,15 @@ async function load() {
   for (const response of [hours, employees, shifts]) {
     if (!response.ok) throw new Error(response.data.error || 'Unable to load the schedule');
   }
+  const operatingHours = hours.data.operating_hours || {};
   state.hours = Object.fromEntries(DAYS.map(day => {
-    const value = hours.data[day];
+    const value = operatingHours[day];
     return [day, value ? { open: clockToMinutes(value.open), close: clockToMinutes(value.close) } : null];
   }));
+  state.breakRule = {
+    threshold: hours.data.break_threshold_minutes ?? state.breakRule.threshold,
+    duration: hours.data.break_duration_minutes ?? state.breakRule.duration,
+  };
   state.employees = new Map(employees.data.map(employee => [employee.id, employee]));
   state.shifts = new Map(shifts.data.map(shift => [shift.id, normalizeShift(shift)]));
   state.selectedDay = DAYS.find(day => shiftsFor(day).length) || DAYS.find(day => dayWindow(day)) || DAYS[0];

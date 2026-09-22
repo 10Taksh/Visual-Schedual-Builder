@@ -1,9 +1,10 @@
 """HTML pages. Data comes from the services; the API blueprint serves the JS."""
 
-from flask import Blueprint, abort, jsonify, redirect, render_template, url_for
+from flask import Blueprint, Response, abort, jsonify, redirect, render_template, url_for
 
 from app.constants import DAYS_OF_WEEK
 from app.db import session_scope
+from app.services.export import master_schedule_csv, shifts_csv
 from app.services.positions import list_positions, position_to_dict, resolve_position
 from app.services.scheduling import build_master_schedule
 
@@ -55,3 +56,23 @@ def master():
     with session_scope() as session:
         schedule_data = build_master_schedule(session)
     return render_template("master.html", **schedule_data)
+
+
+def _csv_response(body: str, filename: str) -> Response:
+    return Response(
+        body,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@pages.get("/export/master.csv")
+def export_master():
+    with session_scope() as session:
+        return _csv_response(master_schedule_csv(session), "master-schedule.csv")
+
+
+@pages.get("/export/shifts.csv")
+def export_shifts():
+    with session_scope() as session:
+        return _csv_response(shifts_csv(session), "shifts.csv")

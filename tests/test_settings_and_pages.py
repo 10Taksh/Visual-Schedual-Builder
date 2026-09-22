@@ -3,25 +3,56 @@ from app.constants import DAYS_OF_WEEK, DEFAULT_OPERATING_HOURS, DEFAULT_POSITIO
 
 class TestSettings:
     def test_defaults(self, client):
-        assert client.get("/api/settings").get_json() == DEFAULT_OPERATING_HOURS
+        assert client.get("/api/settings").get_json() == {
+            "operating_hours": DEFAULT_OPERATING_HOURS,
+            "break_threshold_minutes": 300,
+            "break_duration_minutes": 30,
+        }
 
     def test_update_and_close_a_day(self, client):
         hours = {day: {"open": "8:30", "close": "18:00"} for day in DAYS_OF_WEEK}
         hours["Sunday"] = None
-        response = client.put("/api/settings", json=hours)
+        response = client.put("/api/settings", json={"operating_hours": hours})
         assert response.status_code == 200
-        saved = response.get_json()
+        saved = response.get_json()["operating_hours"]
         assert saved["Monday"] == {"open": "08:30", "close": "18:00"}  # times normalised
         assert saved["Sunday"] is None
-        assert client.get("/api/settings").get_json() == saved
+        assert client.get("/api/settings").get_json()["operating_hours"] == saved
+
+    def test_legacy_bare_hours_payload_still_accepted(self, client):
+        hours = dict(DEFAULT_OPERATING_HOURS)
+        hours["Monday"] = None
+        response = client.put("/api/settings", json=hours)
+        assert response.status_code == 200
+        assert response.get_json()["operating_hours"]["Monday"] is None
+        assert response.get_json()["break_threshold_minutes"] == 300  # untouched
 
     def test_validation(self, client):
         assert client.put("/api/settings", json=[]).status_code == 400
         bad = dict(DEFAULT_OPERATING_HOURS)
         bad["Monday"] = {"open": "10:00", "close": "09:00"}
-        response = client.put("/api/settings", json=bad)
+        response = client.put("/api/settings", json={"operating_hours": bad})
         assert response.status_code == 400
         assert "Monday" in response.get_json()["error"]
+
+    def test_break_rule_update_and_validation(self, client):
+        ok = client.put("/api/settings", json={"break_threshold_minutes": 360, "break_duration_minutes": 45})
+        assert ok.status_code == 200
+        assert (ok.get_json()["break_threshold_minutes"], ok.get_json()["break_duration_minutes"]) == (360, 45)
+        assert client.put("/api/settings", json={"break_duration_minutes": 400}).status_code == 400  # >= threshold
+        assert client.put("/api/settings", json={"break_threshold_minutes": "five"}).status_code == 400
+        assert client.put("/api/settings", json={"break_threshold_minutes": -1}).status_code == 400
+        assert client.put("/api/settings", json={"break_threshold_minutes": 0}).status_code == 200  # disables breaks
+
+    def test_break_rule_applies_to_existing_shifts(self, client, make_employee, make_shift):
+        employee = make_employee()
+        shift = make_shift(employee["id"], start="09:00", end="15:00")  # 6h
+        assert shift["paid_minutes"] == 330
+        client.put("/api/settings", json={"break_threshold_minutes": 420, "break_duration_minutes": 60})
+        refreshed = client.get("/api/shifts").get_json()[0]
+        assert refreshed["break_deduction"] is False and refreshed["paid_minutes"] == 360
+        client.put("/api/settings", json={"break_threshold_minutes": 300, "break_duration_minutes": 60})
+        assert client.get("/api/shifts").get_json()[0]["paid_minutes"] == 300
 
 
 class TestPositions:

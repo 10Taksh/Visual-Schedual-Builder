@@ -9,6 +9,9 @@ DEFAULT_OPERATING_HOURS = {day: {"open": "09:00", "close": "21:00"} for day in D
 BREAK_THRESHOLD_MINUTES = 300
 BREAK_DURATION_MINUTES = 30
 
+# Roster hours turn amber past this many paid minutes in a week.
+WEEKLY_HOURS_WARNING_MINUTES = 40 * 60
+
 # Shift times snap to this grid; a shift can never be shorter than the minimum.
 SLOT_MINUTES = 15
 MINIMUM_SHIFT_MINUTES = 30

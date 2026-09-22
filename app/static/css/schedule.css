@@ -56,7 +56,9 @@
 .day-head-main { display: grid; line-height: 1.2; min-width: 0; }
 .day-name { color: var(--ink); font-size: var(--text-xs); font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
 .day-hours, .day-count { color: var(--muted); font-size: 11px; white-space: nowrap; }
-.day-head-side { display: flex; align-items: center; gap: 6px; }
+.day-count { display: none; }
+@media (min-width: 1500px) { .day-count { display: inline; } }
+.day-head-side { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .day-add { width: 26px; height: 26px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--panel); color: var(--ink); cursor: pointer; font-size: 17px; line-height: 1; transition: background .15s, color .15s, transform .1s; }
 .day-add:hover:not(:disabled) { color: #fff; background: var(--accent); border-color: var(--accent); }
 .day-add:disabled { opacity: .35; cursor: default; }
@@ -127,6 +129,19 @@
 .editor-meta { margin: var(--space-3) 0 0; color: var(--muted); font-size: var(--text-xs); }
 .editor-actions { display: flex; justify-content: space-between; gap: var(--space-2); margin-top: var(--space-3); }
 
+/* --- day menu & duplicate ----------------------------------------------- */
+.day-menu-button { font-size: 14px; letter-spacing: 1px; }
+.day-menu { position: fixed; z-index: 30; width: 280px; padding: var(--space-4); box-shadow: var(--shadow-pop); }
+.day-menu .label { margin: var(--space-2) 0 6px; }
+.day-checks { display: flex; flex-wrap: wrap; gap: 6px; }
+.day-checks .check { padding: 4px 10px 4px 6px; border: 1px solid var(--line); border-radius: 999px; font-size: var(--text-xs); }
+.day-checks .check:has(input:checked) { border-color: var(--accent); background: var(--accent-faint); }
+.day-checks .check:has(input:disabled) { opacity: .45; cursor: default; }
+.menu-replace { display: flex; margin-top: var(--space-3); font-size: var(--text-xs); color: var(--muted); }
+.editor-duplicate { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--line-soft); }
+.editor-duplicate summary { cursor: pointer; color: var(--accent-dark); font-size: var(--text-xs); font-weight: 700; }
+.editor-duplicate .day-checks { margin: var(--space-2) 0; }
+
 /* --- responsive --------------------------------------------------------- */
 @media (max-width: 1100px) {
   .schedule-layout { grid-template-columns: 1fr; }
@@ -141,7 +156,7 @@
   .board.single-day .day-head:not(.is-selected), .board.single-day .day-col:not(.is-selected) { display: none; }
   .board-header { top: var(--nav-height); }
   .day-head { min-height: 48px; }
-  .shift-editor { left: var(--space-3) !important; right: var(--space-3) !important; top: auto !important; bottom: var(--space-3); width: auto; }
+  .shift-editor, .day-menu { left: var(--space-3) !important; right: var(--space-3) !important; top: auto !important; bottom: var(--space-3); width: auto; }
 }
 @media (max-width: 780px) {
   .topbar { align-items: flex-start; }

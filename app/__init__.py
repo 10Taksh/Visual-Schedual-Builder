@@ -12,6 +12,7 @@ from app.constants import (
     EMPLOYMENT_TYPES,
     MINIMUM_SHIFT_MINUTES,
     SLOT_MINUTES,
+    WEEKLY_HOURS_WARNING_MINUTES,
 )
 from app.services.errors import ApiError
 
@@ -24,6 +25,7 @@ APP_META = {
     "break_duration_minutes": BREAK_DURATION_MINUTES,
     "slot_minutes": SLOT_MINUTES,
     "minimum_shift_minutes": MINIMUM_SHIFT_MINUTES,
+    "weekly_hours_warning_minutes": WEEKLY_HOURS_WARNING_MINUTES,
 }
 
 

@@ -5,7 +5,7 @@ import logging
 from sqlalchemy import inspect, select, text
 from sqlalchemy.engine import Engine
 
-from app.constants import DEFAULT_OPERATING_HOURS, DEFAULT_POSITIONS
+from app.constants import BREAK_DURATION_MINUTES, BREAK_THRESHOLD_MINUTES, DEFAULT_OPERATING_HOURS, DEFAULT_POSITIONS
 from app.db import session_scope
 from app.models import Base, Employee, Position, StoreSettings
 from app.services.availability import normalize_availability
@@ -20,6 +20,10 @@ _ADDED_COLUMNS = {
         "label": "VARCHAR(60)",
         "color": "VARCHAR(7) NOT NULL DEFAULT '#53685D'",
         "sort_order": "INTEGER NOT NULL DEFAULT 0",
+    },
+    "store_settings": {
+        "break_threshold_minutes": f"INTEGER NOT NULL DEFAULT {BREAK_THRESHOLD_MINUTES}",
+        "break_duration_minutes": f"INTEGER NOT NULL DEFAULT {BREAK_DURATION_MINUTES}",
     },
 }
 

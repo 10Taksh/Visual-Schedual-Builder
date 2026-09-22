@@ -132,6 +132,10 @@ dialog.dialog::backdrop { background: var(--overlay); }
 }
 .toast.visible { opacity: 1; transform: translateY(0); }
 .toast.error { background: var(--danger); }
+.toast.has-action { display: flex; align-items: center; gap: var(--space-3); pointer-events: auto; }
+.toast-text { flex: 1; }
+.toast-action { flex-shrink: 0; padding: 6px 12px; border: 0; border-radius: 999px; background: rgba(255, 255, 255, .16); color: #fff; cursor: pointer; font: 700 var(--text-xs) var(--font-sans); letter-spacing: .4px; text-transform: uppercase; }
+.toast-action:hover { background: rgba(255, 255, 255, .28); }
 
 /* --- empty states ------------------------------------------------------- */
 .empty { padding: var(--space-6) var(--space-4); color: var(--muted); text-align: center; font-size: var(--text-md); }

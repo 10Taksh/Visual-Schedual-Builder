@@ -27,17 +27,21 @@ python -m pytest
 
 - **Employees** (`/employees`) — add people, their employment type, the positions they can
   work, a per-day availability editor (Open / Unavailable / Custom hours), and a schedule
-  color. Store operating hours live on the same page.
+  color. Store operating hours and the unpaid-break rule live on the same page.
 - **Schedule** (`/schedule/<position>`) — one time-axis board per position: each day is a
   vertical timeline spanning store hours, and shifts are blocks positioned by time so gaps
   and overlaps are visible at a glance. Select a person in the roster, then click or drag on
   a day to place a shift; drag a block to move it (across days too), drag its edges to
-  resize, or click it to type exact times. A coverage strip on each day shows headcount.
-  Every change is checked against store hours, the person's availability, and their other
-  shifts before it is saved. On phones the board shows one day at a time.
+  resize, or click it to type exact times or duplicate it to other days. The `⋯` menu on a
+  day copies that day's shifts to other days (optionally replacing what is there) or clears
+  the day. Removing a shift is immediate, with an Undo in the toast. A coverage strip on
+  each day shows headcount. Every change is checked against store hours, the person's
+  availability, and their other shifts before it is saved. On phones the board shows one
+  day at a time.
 - **Master** (`/master`) — every saved shift, grouped by position, with paid and scheduled
-  totals, sticky headers, and a print stylesheet. Shifts of five hours or more have a
-  30-minute unpaid break deducted.
+  totals, an hourly coverage row, sticky headers, CSV exports, and a print stylesheet.
+  The unpaid-break rule (default: shifts of 5h or more lose 30 minutes) is a store setting
+  and applies to the whole template week.
 
 The schedule is a **recurring weekly template** — shifts are keyed by weekday, not by date.
 
@@ -65,8 +69,9 @@ app/
   services/          all business logic — framework-free, exercised directly by tests
     availability.py  canonical availability form + interval lookups
     employees.py     validation, color assignment, orphaned-shift protection
-    scheduling.py    conflict detection, break rule, master-schedule rollup
-    settings.py      operating hours
+    scheduling.py    conflict detection, break rule, copy-day, master-schedule rollup + coverage
+    settings.py      operating hours and the break rule
+    export.py        CSV exports
     positions.py     position lookup and URL slugs
     errors.py        ApiError → JSON error responses
   routes/
@@ -84,14 +89,17 @@ wsgi.py              entry point: `gunicorn wsgi:app` or `python wsgi.py`
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/positions` | `[{id, name, label, slug, color, sort_order}]` |
-| GET / PUT | `/api/settings` | operating hours, `{Monday: {open, close} \| null, ...}` |
+| GET / PUT | `/api/settings` | `{operating_hours: {Monday: {open, close} \| null, ...}, break_threshold_minutes, break_duration_minutes}` — PUT accepts any subset |
 | GET | `/api/employees?position=Cashier` | optional position filter |
 | GET / POST | `/api/employees`, `/api/employees/<id>` | |
 | PUT / DELETE | `/api/employees/<id>` | PUT returns 409 `code: orphaned_shifts` if a removed position still has shifts; resend with `remove_orphaned_shifts: true` |
 | GET | `/api/shifts?position=Cashier` | optional position filter |
 | POST | `/api/shifts` | `{employee_id, position, day_of_week, start_time, end_time}` — 409 on conflict |
 | PUT / DELETE | `/api/shifts/<id>` | |
-| DELETE | `/api/shifts` | clears every shift |
+| DELETE | `/api/shifts?position=&day=` | clears matching shifts (both filters optional) |
+| POST | `/api/shifts/copy` | `{position, source_day, target_days, shift_ids?, replace?}` → `{created, skipped: [{employee_name, day_of_week, reason}], removed}` |
+| GET | `/export/master.csv` | weekly grid, one row per employee-and-position |
+| GET | `/export/shifts.csv` | one row per shift |
 
 Times are `HH:MM` (24-hour) in the API; responses also include `*_display` fields in 12-hour
 form. Errors are `{"error": "..."}` with a 400/404/409 status.

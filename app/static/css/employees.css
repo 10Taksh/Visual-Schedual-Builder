@@ -37,6 +37,10 @@
 .hours-divider { color: var(--faint); font-size: var(--text-xs); }
 .closed-toggle { flex: 0 0 auto; margin-left: auto; gap: 4px; font-size: var(--text-xs); white-space: nowrap; }
 .hours-row.is-closed strong { color: var(--faint); }
+.break-rule { margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--line-soft); }
+.break-rule .help { line-height: 2; }
+.inline-field { display: inline-flex; align-items: baseline; gap: 4px; margin: 0; color: var(--ink); font: inherit; letter-spacing: 0; text-transform: none; }
+.break-rule .inline-field input[type="number"] { width: 64px; padding: 4px 6px; text-align: center; font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
 .danger-panel { border-top-color: var(--danger); padding-bottom: var(--space-5); }
 .danger-panel h3 { margin-top: var(--space-1); }
 .danger-panel .button { margin-top: var(--space-3); }

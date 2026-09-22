@@ -78,8 +78,14 @@
       </div>
       <p class="help">Shifts can only be scheduled while the store is open.</p>
       <div class="hours-list" id="hours-list"></div>
+
+      <fieldset class="break-rule">
+        <legend>Unpaid break</legend>
+        <p class="help">Shifts of at least <label class="inline-field"><input type="number" id="break-threshold" min="0" max="24" step="0.25" inputmode="decimal" aria-label="Shift length in hours that earns a break"> h</label> get a <label class="inline-field"><input type="number" id="break-duration" min="0" max="240" step="5" inputmode="numeric" aria-label="Break length in minutes"> min</label> break deducted from paid time. Set either to 0 to turn breaks off.</p>
+      </fieldset>
+
       <div class="form-actions">
-        <button class="button button-primary" type="submit" id="save-hours">Save hours</button>
+        <button class="button button-primary" type="submit" id="save-hours">Save settings</button>
       </div>
     </form>
 

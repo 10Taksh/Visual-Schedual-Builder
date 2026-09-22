@@ -60,9 +60,9 @@ class TestConflicts:
         assert "store hours" in error
 
     def test_store_closed(self, client, make_employee, make_shift):
-        hours = client.get("/api/settings").get_json()
-        hours["Sunday"] = None
-        assert client.put("/api/settings", json=hours).status_code == 200
+        settings = client.get("/api/settings").get_json()
+        settings["operating_hours"]["Sunday"] = None
+        assert client.put("/api/settings", json=settings).status_code == 200
         employee = make_employee()
         assert "closed on Sunday" in make_shift(employee["id"], day="Sunday", expect=409)["error"]
 

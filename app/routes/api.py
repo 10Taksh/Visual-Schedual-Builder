@@ -28,13 +28,13 @@ def get_positions():
 @api.get("/settings")
 def get_settings():
     with session_scope() as session:
-        return jsonify(settings_service.get_operating_hours(session))
+        return jsonify(settings_service.settings_to_dict(session))
 
 
 @api.put("/settings")
 def update_settings():
     with session_scope() as session:
-        return jsonify(settings_service.update_operating_hours(session, request.get_json(silent=True)))
+        return jsonify(settings_service.update_settings(session, request.get_json(silent=True)))
 
 
 # --- employees ---------------------------------------------------------------
@@ -76,8 +76,8 @@ def delete_employee(employee_id: int):
 @api.get("/shifts")
 def list_shifts():
     with session_scope() as session:
-        shifts = shift_service.list_shifts(session, request.args.get("position"))
-        return jsonify([shift_service.shift_to_dict(shift) for shift in shifts])
+        shifts = shift_service.list_shifts(session, request.args.get("position"), request.args.get("day"))
+        return jsonify(shift_service.serialize_shifts(session, shifts))
 
 
 @api.post("/shifts")
@@ -101,6 +101,14 @@ def delete_shift(shift_id: int):
 
 @api.delete("/shifts")
 def clear_shifts():
+    """Delete every shift, or only those matching ?position= and/or ?day=."""
     with session_scope() as session:
-        count = shift_service.clear_shifts(session)
-    return jsonify(message="Schedule cleared", deleted_count=count)
+        count = shift_service.clear_shifts(session, request.args.get("position"), request.args.get("day"))
+    return jsonify(message="Shifts cleared", deleted_count=count)
+
+
+@api.post("/shifts/copy")
+def copy_shifts():
+    """Copy a day's shifts to other days; conflicting copies are skipped and reported."""
+    with session_scope() as session:
+        return jsonify(shift_service.copy_shifts(session, request.get_json(silent=True)))
