@@ -1,0 +1,31 @@
+[Unit]
+Description=Visual Schedule Builder (gunicorn)
+After=network.target
+
+[Service]
+User=schedule
+Group=schedule
+WorkingDirectory=/opt/schedule-builder
+# Defaults; /etc/schedule-builder.env overrides them (setup.sh picks 1 worker on VMs under 1.5 GB).
+Environment=GUNICORN_WORKERS=2
+Environment=GUNICORN_THREADS=4
+EnvironmentFile=/etc/schedule-builder.env
+# A couple of workers with threads is plenty for a team-sized app; SQLite serialises writes,
+# and db.py sets a busy timeout so concurrent saves wait rather than fail.
+ExecStart=/opt/schedule-builder/.venv/bin/gunicorn wsgi:app \
+    --bind 127.0.0.1:8000 \
+    --workers ${GUNICORN_WORKERS} --threads ${GUNICORN_THREADS} \
+    --timeout 60 \
+    --access-logfile - --error-logfile -
+Restart=always
+RestartSec=3
+
+# Hardening: the service can only write to its data directory.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/schedule-builder
+
+[Install]
+WantedBy=multi-user.target

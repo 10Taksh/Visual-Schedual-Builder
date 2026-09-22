@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}{{ active_position.label }} Schedule | Visual Schedule Builder{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/schedule.css') }}">{% endblock %}
+{% block body_attrs %}data-position="{{ active_position.name }}" data-position-color="{{ active_position.color }}"{% endblock %}
+
+{% block content %}
+<header class="page-header topbar">
+  <div>
+    <p class="eyebrow">Weekly schedule</p>
+    <h1>{{ active_position.label }}</h1>
+    <p class="board-summary" id="board-summary" aria-live="polite">Loading…</p>
+  </div>
+  <div class="week-controls">
+    <a class="icon-button" href="{{ url_for('pages.schedule', slug=previous_position.slug) }}" aria-label="Previous position: {{ previous_position.label }}" title="{{ previous_position.label }}">‹</a>
+    <a class="icon-button" href="{{ url_for('pages.schedule', slug=next_position.slug) }}" aria-label="Next position: {{ next_position.label }}" title="{{ next_position.label }}">›</a>
+  </div>
+</header>
+
+<nav class="position-tabs" aria-label="Schedule positions">
+  {% for position in positions %}
+  <a class="position-tab{% if position.id == active_position.id %} active{% endif %}" style="--tab-color: {{ position.color }}" href="{{ url_for('pages.schedule', slug=position.slug) }}" {% if position.id == active_position.id %}aria-current="page"{% endif %}><span class="dot" style="--dot-color: {{ position.color }}"></span>{{ position.label }}</a>
+  {% endfor %}
+</nav>
+
+<section class="schedule-layout">
+  <aside class="roster card" aria-labelledby="roster-heading">
+    <div class="roster-heading">
+      <h3 id="roster-heading">{{ active_position.label }} team</h3>
+      <p class="help" id="roster-hint">Select a person, then click a day to place a shift.</p>
+    </div>
+    <div class="roster-list" id="roster" role="listbox" aria-label="Employees"></div>
+  </aside>
+
+  <div class="board-wrap">
+    <div class="board-toolbar">
+      <div class="day-tabs" id="day-tabs" role="tablist" aria-label="Day">
+        {% for day in days %}
+        <button type="button" class="day-tab{% if loop.first %} active{% endif %}" role="tab" data-day-tab="{{ day }}" aria-selected="{{ 'true' if loop.first else 'false' }}">{{ day[:3] }}</button>
+        {% endfor %}
+      </div>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-swatch avail"></span>Unavailable</span>
+        <span class="legend-item"><span class="legend-swatch closed"></span>Store closed</span>
+        <span class="legend-item"><span class="legend-swatch cover"></span>Coverage</span>
+      </div>
+    </div>
+
+    <div class="board" id="board" aria-label="Weekly {{ active_position.label }} schedule">
+      <div class="board-header">
+        <div class="axis-corner" aria-hidden="true"></div>
+        {% for day in days %}
+        <div class="day-head" data-day-head="{{ day }}">
+          <div class="day-head-main">
+            <span class="day-name">{{ day[:3] }}</span>
+            <small class="day-hours" data-day-hours="{{ day }}"></small>
+          </div>
+          <div class="day-head-side">
+            <small class="day-count" data-day-count="{{ day }}"></small>
+            <button type="button" class="day-add" data-day-add="{{ day }}" aria-label="Add a shift on {{ day }}" title="Add shift">+</button>
+            <button type="button" class="day-add day-menu-button" data-day-menu="{{ day }}" aria-label="More actions for {{ day }}" aria-haspopup="dialog" title="Copy or clear this day">⋯</button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="board-body" id="board-body">
+        <div class="axis" id="axis" aria-hidden="true"></div>
+        {% for day in days %}
+        <div class="day-col" data-day="{{ day }}">
+          <div class="col-layers" data-layers="{{ day }}"></div>
+          <div class="col-coverage" data-coverage="{{ day }}" aria-hidden="true"></div>
+          <div class="col-shifts" data-shifts="{{ day }}"></div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="shift-editor card" id="shift-editor" role="dialog" aria-label="Edit shift" hidden>
+  <div class="editor-head">
+    <span class="dot" data-editor-dot></span>
+    <strong data-editor-name></strong>
+    <button type="button" class="editor-close" data-editor-close aria-label="Close">×</button>
+  </div>
+  <div class="editor-grid">
+    <label class="field"><span>Day</span>
+      <select data-editor-day>
+        {% for day in days %}<option value="{{ day }}">{{ day }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="field"><span>Start</span><input type="time" data-editor-start step="900"></label>
+    <label class="field"><span>End</span><input type="time" data-editor-end step="900"></label>
+  </div>
+  <p class="editor-meta" data-editor-meta></p>
+  <p class="field-error" data-editor-error hidden></p>
+  <div class="editor-actions">
+    <button type="button" class="button button-danger button-sm" data-editor-remove>Remove</button>
+    <button type="button" class="button button-primary button-sm" data-editor-save>Save</button>
+  </div>
+  <details class="editor-duplicate">
+    <summary>Duplicate to other days</summary>
+    <div class="day-checks" data-editor-targets></div>
+    <button type="button" class="button button-secondary button-sm" data-editor-duplicate>Duplicate</button>
+  </details>
+</div>
+
+<div class="day-menu card" id="day-menu" role="dialog" aria-label="Day actions" hidden>
+  <div class="editor-head">
+    <strong data-menu-title></strong>
+    <button type="button" class="editor-close" data-menu-close aria-label="Close">×</button>
+  </div>
+  <p class="label">Copy this day's shifts to</p>
+  <div class="day-checks" data-menu-targets></div>
+  <label class="check menu-replace"><input type="checkbox" data-menu-replace> Replace what's already on those days</label>
+  <div class="editor-actions">
+    <button type="button" class="button button-danger button-sm" data-menu-clear>Clear day</button>
+    <button type="button" class="button button-primary button-sm" data-menu-copy>Copy</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}<script type="module" src="{{ url_for('static', filename='js/schedule.js') }}"></script>{% endblock %}

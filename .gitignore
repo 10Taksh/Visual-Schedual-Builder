@@ -1,4 +1,8 @@
 __pycache__/
 *.py[cod]
 .venv/
+.venv*/
+.pytest_cache/
 schedule.db
+*.db
+instance/

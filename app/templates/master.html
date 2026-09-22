@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Master Schedule | Visual Schedule Builder{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/master.css') }}">{% endblock %}
+
+{% block content %}
+<header class="page-header master-header">
+  <div>
+    <p class="eyebrow">All departments</p>
+    <h1>Master schedule</h1>
+    <p class="lede">Every employee, position, and saved shift in one weekly view.</p>
+  </div>
+  <div class="header-actions">
+    <div class="stat-tiles">
+      <div class="stat">
+        <span class="stat-label">Paid hours</span>
+        <strong class="stat-value">{{ total_paid_minutes // 60 }}<small>h</small> {{ total_paid_minutes % 60 }}<small>m</small></strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Scheduled</span>
+        <strong class="stat-value">{{ total_scheduled_minutes // 60 }}<small>h</small> {{ total_scheduled_minutes % 60 }}<small>m</small></strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">People</span>
+        <strong class="stat-value">{{ rows | map(attribute='employee_id') | unique | list | length }}</strong>
+      </div>
+    </div>
+    <div class="header-buttons">
+      <a class="button button-secondary" href="{{ url_for('pages.export_master') }}" download>Export CSV</a>
+      <a class="button button-quiet" href="{{ url_for('pages.export_shifts') }}" download title="One row per shift">Shift list</a>
+      <button class="button button-quiet" type="button" onclick="window.print()">Print</button>
+      {% if positions %}
+      <a class="button button-primary" href="{{ url_for('pages.schedule', slug=positions[0].slug) }}">Edit schedules</a>
+      {% endif %}
+    </div>
+  </div>
+</header>
+
+<div class="master-meta">
+  <span class="chip">Recurring weekly template</span>
+  <div class="legend">
+    {% for position in positions %}
+    <a class="legend-item" href="{{ url_for('pages.schedule', slug=position.slug) }}"><span class="dot" style="--dot-color: {{ position.color }}"></span>{{ position.label }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+<section class="master-groups" aria-label="Master weekly schedule">
+  {% if rows %}
+  <div class="master-scroll card">
+    <table class="master-table">
+      <thead>
+        <tr>
+          <th scope="col" class="col-employee">Employee</th>
+          {% for day in days %}<th scope="col">{{ day[:3] }}</th>{% endfor %}
+          <th scope="col" class="col-total">Week</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        {% if loop.first or loop.previtem.department != row.department %}
+        <tr class="group-row" style="--department-color: {{ row.department_color }}">
+          <th scope="rowgroup" colspan="{{ days | length + 2 }}"><span class="dot" style="--dot-color: {{ row.department_color }}"></span>{{ row.department_label }}</th>
+        </tr>
+        {% endif %}
+        <tr style="--department-color: {{ row.department_color }}; --employee-color: {{ row.employee_color }}">
+          <th scope="row" class="col-employee">
+            <span class="employee-swatch"></span>
+            <div>
+              <strong>{{ row.employee_name }}</strong>
+              <small>{{ row.paid_minutes // 60 }}h {{ row.paid_minutes % 60 }}m as {{ row.department_label }}</small>
+            </div>
+          </th>
+          {% for day in days %}
+          <td>
+            {% for shift in row.shifts_by_day[day] %}
+            <div class="shift-card">
+              <span class="shift-time">{{ shift.start_time_display }}–{{ shift.end_time_display }}</span>
+              <span class="shift-meta">{{ shift.paid_minutes // 60 }}h{% if shift.paid_minutes % 60 %} {{ shift.paid_minutes % 60 }}m{% endif %}{% if shift.break_deduction %} · {{ shift.break_minutes }}m break{% endif %}</span>
+            </div>
+            {% else %}
+            <span class="empty-cell" aria-label="No shift">·</span>
+            {% endfor %}
+          </td>
+          {% endfor %}
+          <td class="col-total">
+            <strong>{{ row.all_position_paid_hours }}h</strong>
+            {% if row.position_count > 1 %}<small>{{ row.position_count }} positions</small>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="coverage-row">
+          <th scope="row" class="col-employee">
+            <div>
+              <strong>Coverage</strong>
+              <small>People on the floor, by hour</small>
+            </div>
+          </th>
+          {% for day in days %}
+          {% set cover = coverage[day] %}
+          <td>
+            {% if cover.closed %}
+            <span class="empty-cell">Closed</span>
+            {% elif cover.shift_count %}
+            <div class="coverage-bars" role="img" aria-label="{{ day }}: {{ cover.shift_count }} shifts, {{ cover.paid_minutes // 60 }} paid hours">
+              {% for count in cover.buckets %}
+              <span class="coverage-bar" style="--h: {{ (count / max_headcount * 100) | round if max_headcount else 0 }}%" title="{{ count }} at {{ (cover.open[:2] | int + loop.index0) % 24 }}:00"></span>
+              {% endfor %}
+            </div>
+            <small class="coverage-meta">{{ cover.shift_count }} shift{{ '' if cover.shift_count == 1 else 's' }} · {{ cover.paid_minutes // 60 }}h{% if cover.paid_minutes % 60 %} {{ cover.paid_minutes % 60 }}m{% endif %}</small>
+            {% else %}
+            <span class="empty-cell">No coverage</span>
+            {% endif %}
+          </td>
+          {% endfor %}
+          <td class="col-total"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% else %}
+  <div class="card empty-schedule">
+    <p class="empty">No saved shifts yet.{% if positions %} <a href="{{ url_for('pages.schedule', slug=positions[0].slug) }}">Start with the {{ positions[0].label }} schedule.</a>{% endif %}</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

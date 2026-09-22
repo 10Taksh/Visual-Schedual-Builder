@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f1ea">
+  <title>{% block title %}Visual Schedule Builder{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body {% block body_attrs %}{% endblock %}>
+  <nav class="site-nav" aria-label="Primary">
+    <a class="brand" href="{{ url_for('pages.employees') }}">Visual Schedule Builder</a>
+    <div class="nav-links">
+      <a class="nav-link{% if request.endpoint == 'pages.employees' %} active{% endif %}" href="{{ url_for('pages.employees') }}">Employees</a>
+      {% if positions %}
+      <a class="nav-link{% if request.endpoint == 'pages.schedule' %} active{% endif %}" href="{{ url_for('pages.schedule', slug=positions[0].slug) }}">Schedule</a>
+      {% endif %}
+      <a class="nav-link{% if request.endpoint == 'pages.master' %} active{% endif %}" href="{{ url_for('pages.master') }}">Master</a>
+    </div>
+  </nav>
+
+  <main class="shell">
+    {% block content %}{% endblock %}
+  </main>
+
+  <dialog class="dialog" id="confirm-dialog" aria-labelledby="confirm-title">
+    <div class="dialog-body">
+      <h2 id="confirm-title" data-title></h2>
+      <p data-message></p>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="button button-quiet" data-cancel>Cancel</button>
+      <button type="button" class="button button-primary" data-confirm>Confirm</button>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script>
+    window.APP_META = {{ app_meta|tojson }};
+    (function () {
+      var nav = document.querySelector('.site-nav');
+      var update = function () { document.documentElement.style.setProperty('--nav-height', nav.offsetHeight + 'px'); };
+      update();
+      window.addEventListener('resize', update);
+    })();
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
