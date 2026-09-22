@@ -3,64 +3,93 @@
 {% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/master.css') }}">{% endblock %}
 
 {% block content %}
-<header class="master-header">
+<header class="page-header master-header">
   <div>
     <p class="eyebrow">All departments</p>
     <h1>Master schedule</h1>
-    <p class="lede">One weekly view of every employee, position, and saved shift.</p>
+    <p class="lede">Every employee, position, and saved shift in one weekly view.</p>
   </div>
   <div class="header-actions">
-    <div class="total-hours">
-      <span>Total store hours</span>
-      <strong>{{ total_paid_minutes // 60 }}h {{ total_paid_minutes % 60 }}m paid</strong>
-      <small>{{ total_scheduled_minutes // 60 }}h {{ total_scheduled_minutes % 60 }}m scheduled</small>
+    <div class="stat-tiles">
+      <div class="stat">
+        <span class="stat-label">Paid hours</span>
+        <strong class="stat-value">{{ total_paid_minutes // 60 }}<small>h</small> {{ total_paid_minutes % 60 }}<small>m</small></strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Scheduled</span>
+        <strong class="stat-value">{{ total_scheduled_minutes // 60 }}<small>h</small> {{ total_scheduled_minutes % 60 }}<small>m</small></strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">People</span>
+        <strong class="stat-value">{{ rows | map(attribute='employee_id') | unique | list | length }}</strong>
+      </div>
     </div>
-    <span class="week-label">Recurring weekly template</span>
     {% if positions %}
     <a class="button button-primary" href="{{ url_for('pages.schedule', slug=positions[0].slug) }}">Edit schedules</a>
     {% endif %}
   </div>
 </header>
 
+<div class="master-meta">
+  <span class="chip">Recurring weekly template</span>
+  <div class="legend">
+    {% for position in positions %}
+    <a class="legend-item" href="{{ url_for('pages.schedule', slug=position.slug) }}"><span class="dot" style="--dot-color: {{ position.color }}"></span>{{ position.label }}</a>
+    {% endfor %}
+  </div>
+</div>
+
 <section class="master-groups" aria-label="Master weekly schedule">
   {% if rows %}
-  <div class="master-scroll">
-    <div class="master-board">
-      <div class="row-label header-label"># Employee / Department</div>
-      {% for day in days %}
-      <div class="day-header"><span>{{ day[:3] }}</span></div>
-      {% endfor %}
-      {% for row in rows %}
-      <div class="row-label" style="--department-color: {{ row.department_color }}">
-        <span class="department-marker"></span>
-        <div>
-          <strong>{{ row.row_number }}. {{ row.employee_name }}</strong>
-          <small>{{ row.department_label }} · {{ row.all_position_paid_hours }}h paid{% if row.position_count > 1 %} across {{ row.position_count }} positions{% endif %}</small>
-        </div>
-      </div>
-      {% for day in days %}
-      <div class="day-cell" style="--department-color: {{ row.department_color }}">
-        {% for shift in row.shifts_by_day[day] %}
-        <article class="shift-card">
-          <p class="shift-time">{{ shift.start_time_display }}–{{ shift.end_time_display }}</p>
-          <p class="shift-meta">{{ shift.paid_minutes // 60 }}h {{ shift.paid_minutes % 60 }}m{% if shift.break_deduction %} · {{ shift.break_minutes }}m break{% endif %}</p>
-        </article>
-        {% else %}
-        <span class="empty-cell">–</span>
+  <div class="master-scroll card">
+    <table class="master-table">
+      <thead>
+        <tr>
+          <th scope="col" class="col-employee">Employee</th>
+          {% for day in days %}<th scope="col">{{ day[:3] }}</th>{% endfor %}
+          <th scope="col" class="col-total">Week</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        {% if loop.first or loop.previtem.department != row.department %}
+        <tr class="group-row" style="--department-color: {{ row.department_color }}">
+          <th scope="rowgroup" colspan="{{ days | length + 2 }}"><span class="dot" style="--dot-color: {{ row.department_color }}"></span>{{ row.department_label }}</th>
+        </tr>
+        {% endif %}
+        <tr style="--department-color: {{ row.department_color }}; --employee-color: {{ row.employee_color }}">
+          <th scope="row" class="col-employee">
+            <span class="employee-swatch"></span>
+            <div>
+              <strong>{{ row.employee_name }}</strong>
+              <small>{{ row.paid_minutes // 60 }}h {{ row.paid_minutes % 60 }}m as {{ row.department_label }}</small>
+            </div>
+          </th>
+          {% for day in days %}
+          <td>
+            {% for shift in row.shifts_by_day[day] %}
+            <div class="shift-card">
+              <span class="shift-time">{{ shift.start_time_display }}–{{ shift.end_time_display }}</span>
+              <span class="shift-meta">{{ shift.paid_minutes // 60 }}h{% if shift.paid_minutes % 60 %} {{ shift.paid_minutes % 60 }}m{% endif %}{% if shift.break_deduction %} · {{ shift.break_minutes }}m break{% endif %}</span>
+            </div>
+            {% else %}
+            <span class="empty-cell" aria-label="No shift">·</span>
+            {% endfor %}
+          </td>
+          {% endfor %}
+          <td class="col-total">
+            <strong>{{ row.all_position_paid_hours }}h</strong>
+            {% if row.position_count > 1 %}<small>{{ row.position_count }} positions</small>{% endif %}
+          </td>
+        </tr>
         {% endfor %}
-      </div>
-      {% endfor %}
-      {% endfor %}
-    </div>
+      </tbody>
+    </table>
   </div>
   {% else %}
-  <p class="empty-schedule">No saved shifts yet. {% if positions %}<a href="{{ url_for('pages.schedule', slug=positions[0].slug) }}">Start with the {{ positions[0].label }} schedule.</a>{% endif %}</p>
+  <div class="card empty-schedule">
+    <p class="empty">No saved shifts yet.{% if positions %} <a href="{{ url_for('pages.schedule', slug=positions[0].slug) }}">Start with the {{ positions[0].label }} schedule.</a>{% endif %}</p>
+  </div>
   {% endif %}
 </section>
-
-<footer class="master-footer">
-  {% for position in positions %}
-  <span class="legend-item"><span class="legend-mark" style="--department-color: {{ position.color }}"></span>{{ position.label }}</span>
-  {% endfor %}
-</footer>
 {% endblock %}

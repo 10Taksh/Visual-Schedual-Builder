@@ -20,3 +20,22 @@ export const DAYS = META.days || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 
 export function plural(count, singular, pluralForm = `${singular}s`) {
   return `${count} ${count === 1 ? singular : pluralForm}`;
 }
+
+/** Disable a button and show a spinner while an async action runs. */
+export async function withBusy(button, action) {
+  if (!button) return action();
+  button.disabled = true;
+  button.classList.add('is-busy');
+  button.setAttribute('aria-busy', 'true');
+  try {
+    return await action();
+  } finally {
+    button.disabled = false;
+    button.classList.remove('is-busy');
+    button.removeAttribute('aria-busy');
+  }
+}
+
+export function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}

@@ -70,10 +70,13 @@ class TestPages:
         make_shift(alice["id"], position="Food", day="Tuesday", start="09:00", end="13:00")  # 4h
         make_shift(bob["id"], position="Food", day="Monday", start="12:00", end="18:00")  # 6h, 5.5 paid
         html = client.get("/master").get_data(as_text=True)
-        assert "1. Alice" in html and "2. Alice" in html and "3. Bob" in html  # grouped by position, then name
-        assert "11.5h paid across 2 positions" in html
-        assert "17h 0m paid" in html  # 7.5 + 4 + 5.5
-        assert "18h 0m scheduled" in html
+        # Grouped by position (Cashier first), then by name: Alice/Cashier, Alice/Food, Bob/Food.
+        assert html.index("Alice") < html.index("Bob")
+        assert html.count("<strong>Alice</strong>") == 2 and html.count("<strong>Bob</strong>") == 1
+        assert html.index('scope="rowgroup"') < html.index("<strong>Alice</strong>")
+        assert "<strong>11.5h</strong>" in html and "2 positions" in html  # Alice's weekly total
+        assert "17<small>h</small> 0<small>m</small>" in html  # paid: 7.5 + 4 + 5.5
+        assert "18<small>h</small> 0<small>m</small>" in html  # scheduled
 
     def test_api_404_is_json(self, client):
         response = client.get("/api/nope")

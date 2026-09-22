@@ -1,8 +1,8 @@
 # Visual Schedule Builder
 
 A small Flask app for building a recurring weekly staff schedule: manage employees and their
-availability, set store operating hours, place shifts per position with drag-to-adjust time
-sliders, and review everything on one master schedule.
+availability, set store operating hours, place shifts on a drag-and-drop timeline per
+position, and review everything on one master schedule.
 
 ## Run it locally
 
@@ -26,14 +26,18 @@ python -m pytest
 ## How it works
 
 - **Employees** (`/employees`) — add people, their employment type, the positions they can
-  work, their weekly availability, and a schedule color. Store operating hours live on the
-  same page.
-- **Schedule** (`/schedule/<position>`) — one weekly board per position. Pick an employee and
-  a day, then drag the shift's handles in 15-minute steps. Changes save automatically. A
-  shift is refused if it falls outside store hours, outside the employee's availability, or
-  overlaps another shift they already hold in any position.
+  work, a per-day availability editor (Open / Unavailable / Custom hours), and a schedule
+  color. Store operating hours live on the same page.
+- **Schedule** (`/schedule/<position>`) — one time-axis board per position: each day is a
+  vertical timeline spanning store hours, and shifts are blocks positioned by time so gaps
+  and overlaps are visible at a glance. Select a person in the roster, then click or drag on
+  a day to place a shift; drag a block to move it (across days too), drag its edges to
+  resize, or click it to type exact times. A coverage strip on each day shows headcount.
+  Every change is checked against store hours, the person's availability, and their other
+  shifts before it is saved. On phones the board shows one day at a time.
 - **Master** (`/master`) — every saved shift, grouped by position, with paid and scheduled
-  totals. Shifts of five hours or more have a 30-minute unpaid break deducted.
+  totals, sticky headers, and a print stylesheet. Shifts of five hours or more have a
+  30-minute unpaid break deducted.
 
 The schedule is a **recurring weekly template** — shifts are keyed by weekday, not by date.
 
@@ -70,7 +74,7 @@ app/
     api.py           JSON API under /api
   templates/         base.html + one template per page
   static/css/        tokens.css (design tokens), base.css, one file per page
-  static/js/         lib/{api,dom,time,toast}.js shared modules, one module per page
+  static/js/         lib/{api,dom,time,toast,dialog,availability-editor}.js, one module per page
 tests/               pytest suite (in-memory SQLite)
 wsgi.py              entry point: `gunicorn wsgi:app` or `python wsgi.py`
 ```

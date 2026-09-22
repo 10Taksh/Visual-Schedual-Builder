@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f1ea">
   <title>{% block title %}Visual Schedule Builder{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
@@ -24,8 +25,27 @@
     {% block content %}{% endblock %}
   </main>
 
+  <dialog class="dialog" id="confirm-dialog" aria-labelledby="confirm-title">
+    <div class="dialog-body">
+      <h2 id="confirm-title" data-title></h2>
+      <p data-message></p>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="button button-quiet" data-cancel>Cancel</button>
+      <button type="button" class="button button-primary" data-confirm>Confirm</button>
+    </div>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script>window.APP_META = {{ app_meta|tojson }};</script>
+  <script>
+    window.APP_META = {{ app_meta|tojson }};
+    (function () {
+      var nav = document.querySelector('.site-nav');
+      var update = function () { document.documentElement.style.setProperty('--nav-height', nav.offsetHeight + 'px'); };
+      update();
+      window.addEventListener('resize', update);
+    })();
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>
