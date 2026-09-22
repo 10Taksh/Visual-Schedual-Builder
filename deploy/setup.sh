@@ -33,12 +33,20 @@ if ! command -v caddy >/dev/null; then
 fi
 
 echo "==> Opening ports 80/443 in the VM firewall (Oracle's Ubuntu image blocks them by default)"
+# The ACCEPT rules must sit above Oracle's catch-all REJECT, whose line number varies by
+# image, so find it rather than assuming a position.
 for port in 80 443; do
-  if ! iptables -C INPUT -p tcp --dport "$port" -m state --state NEW -j ACCEPT 2>/dev/null; then
-    iptables -I INPUT 6 -p tcp --dport "$port" -m state --state NEW -j ACCEPT
+  while iptables -C INPUT -p tcp --dport "$port" -m state --state NEW -j ACCEPT 2>/dev/null; do
+    iptables -D INPUT -p tcp --dport "$port" -m state --state NEW -j ACCEPT
+  done
+  reject_line=$(iptables -L INPUT --line-numbers | awk '/REJECT/ {print $1; exit}')
+  if [[ -n "$reject_line" ]]; then
+    iptables -I INPUT "$reject_line" -p tcp --dport "$port" -m state --state NEW -j ACCEPT
+  else
+    iptables -A INPUT -p tcp --dport "$port" -m state --state NEW -j ACCEPT
   fi
 done
-if command -v netfilter-persistent >/dev/null; then netfilter-persistent save; fi
+if command -v netfilter-persistent >/dev/null; then netfilter-persistent save >/dev/null; fi
 
 echo "==> Ensuring swap exists (small VMs have none; it prevents out-of-memory during installs)"
 if [[ "$(swapon --show --noheadings | wc -l)" -eq 0 ]] && [[ ! -f /swapfile ]]; then
@@ -103,6 +111,7 @@ echo
 echo "Done. Health check:"
 sleep 1
 curl -fsS http://127.0.0.1:8000/health && echo
-PUBLIC_IP=$(curl -fsS --max-time 3 http://169.254.169.254/opc/v2/vnics/ -H 'Authorization: Bearer Oracle' 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)[0].get("publicIp",""))' 2>/dev/null || true)
+PUBLIC_IP=$(curl -fsS --max-time 3 -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v2/vnics/ 2>/dev/null | python3 -c 'import json,sys; v=json.load(sys.stdin); print(next((x.get("publicIp") for x in v if x.get("publicIp")), ""))' 2>/dev/null || true)
+PUBLIC_IP=${PUBLIC_IP:-$(curl -fsS --max-time 3 https://api.ipify.org 2>/dev/null || true)}
 echo "Open: http://${DOMAIN:-${PUBLIC_IP:-<your-public-ip>}}/"
 echo "Logs: journalctl -u schedule-builder -f"
